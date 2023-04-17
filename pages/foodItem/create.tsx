@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from '@hookform/resolvers/zod';
 import { SubmitButton } from '@/components/SubmitButton';
-import { BelajarNextJsBackEndClient, Province } from '@/functions/swagger/BelajarNextJsBackEnd';
+import { BelajarNextJsBackEndClient, Restaurant} from '@/functions/swagger/BelajarNextJsBackEnd';
 import Link from 'next/link';
 import { InputText } from '@/components/FormControl';
 import { Select, Spin } from 'antd';
@@ -23,9 +23,19 @@ const FormSchema = z.object({
     name: z.string().nonempty({
         message: 'Nama tidak boleh kosong'
     }),
-    provinceId: z.string().nonempty({
-        message: 'Province tidak boleh kosong'
+    price: z.number({
+        invalid_type_error:'Harga tidak boleh kosong dan harus angka'
+    }).nonnegative({
+        message:'Harga tidak boleh negatif'
+    })
+        .max(100000000, "Harga tidak dapat lebih dari 100 juta rupiah")
+        .min(100, "Angka tidak dapat kurang dari 100 rupiah"),
+    restaurantId: z.string({
+        required_error:'restaurant tidak boleh kosong'
+    }).nonempty({
+        message: 'restaurant tidak boleh kosong'
     }),
+
 });
 
 type FormDataType = z.infer<typeof FormSchema>;
@@ -42,15 +52,17 @@ const IndexPage: Page = () => {
         resolver: zodResolver(FormSchema)
     });
 
-    async function onSubmit(data: FormDataType) {
+    async function onSubmit(data: FormDataType) 
+    {
         // console.log(data);
 
         try {
             const client = new BelajarNextJsBackEndClient('http://localhost:3000/api/be');
-            await client.createCity({
+            await client.createFoodItem({
                 name: data.name,
-                provinceId: data.provinceId
-            });
+                price: data.price,
+                restaurantId: data.restaurantId,
+             });
             reset();
         } catch (error) {
             console.error(error);
@@ -60,9 +72,9 @@ const IndexPage: Page = () => {
     const [search, setSearch] = useState('');
     const params = new URLSearchParams();
     params.append('search', search);
-    const provincesUri = '/api/be/api/Provinces?' + params.toString();
+    const restaurantsUri = '/api/be/api/Restaurants?' + params.toString();
     const fetcher = useSwrFetcherWithAccessToken();
-    const { data, isLoading, isValidating } = useSwr<Province[]>(provincesUri, fetcher);
+    const { data, isLoading, isValidating } = useSwr<Restaurant[]>(restaurantsUri, fetcher);
 
     const setSearchDebounced = debounce((t: string) => setSearch(t), 300);
 
@@ -75,21 +87,26 @@ const IndexPage: Page = () => {
 
     return (
         <div>
-            <Title>Create New City</Title>
-            <Link href='/city'>Return to Index</Link>
+            <Title>Create New FoodItem</Title>
+            <Link href='/'>Return to Index</Link>
 
-            <h2 className='mb-5 text-3xl'>Create New City</h2>
+            <h2 className='mb-5 text-3xl'>Create New FoodItem</h2>
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div>
                     <label htmlFor='name'>Name</label>
                     <InputText id='name' {...register('name')}></InputText>
                     <p className='text-red-500'>{errors['name']?.message}</p>
                 </div>
+                <div>
+                    <label htmlFor='price'>Price</label>
+                    <InputText id='price'{...register('price', { valueAsNumber: true })}></InputText>
+                    <p className='text-red-500'>{errors['price']?.message}</p>
+                </div>
                 <div className='mt-5'>
-                    <label htmlFor='province'>Province</label>
+                    <label htmlFor='restaurant'>Restaurant</label>
                     <Controller
                         control={control}
-                        name='provinceId'
+                        name='restaurantId'
                         render={({ field }) => (
                             <Select
                                 className='block'
@@ -104,7 +121,7 @@ const IndexPage: Page = () => {
                         )}
                     ></Controller>
 
-                    <p className='text-red-500'>{errors['provinceId']?.message}</p>
+                    <p className='text-red-500'>{errors['restaurantId']?.message}</p>
                 </div>
                 <div className='mt-5'>
                     <SubmitButton>Submit</SubmitButton>
